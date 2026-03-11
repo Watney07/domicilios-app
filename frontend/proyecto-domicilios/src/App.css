@@ -30,7 +30,7 @@
   font-weight: 800;
   letter-spacing: 0.04em;
   color: #ffffff;
-  background: linear-gradient(135deg, var(--brandMark), rgba(225, 29, 46, 0.75));
+  background: linear-gradient(135deg, var(--brandMark));
 }
 
 .brandName {
@@ -612,4 +612,7 @@ input::placeholder {
   .productImg {
     height: 130px;
   }
+}
+.row select {
+  min-width: 220px;
 }

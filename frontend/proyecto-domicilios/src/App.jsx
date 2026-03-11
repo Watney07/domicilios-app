@@ -290,6 +290,7 @@ function AdminView({ setError }) {
   const [pedidos, setPedidos] = useState([])
   const [assign, setAssign] = useState({ id_pedido: '', id_repartidor: '' })
   const [invoice, setInvoice] = useState({ open: false, loading: false, data: null })
+  const [customCategoria, setCustomCategoria] = useState('')
   const [productForm, setProductForm] = useState({
     id_producto: '',
     nombre: '',
@@ -319,6 +320,10 @@ function AdminView({ setError }) {
   useEffect(() => {
     load()
   }, [])
+
+  const productCategories = Array.from(
+    new Set(productos.map((p) => String(p.categoria || '').trim()).filter(Boolean)),
+  ).sort((a, b) => a.localeCompare(b))
 
   const openInvoice = async (id_pedido) => {
     setError('')
@@ -396,6 +401,7 @@ function AdminView({ setError }) {
                   precio: String(found.precio ?? ''),
                   stock: String(found.stock ?? ''),
                 })
+                setCustomCategoria('')
               }}
               disabled={!productForm.id_producto}
             >
@@ -429,10 +435,27 @@ function AdminView({ setError }) {
           </label>
           <label>
             Categoria
+            <div className="row">
+              <select
+                value={productForm.categoria}
+                onChange={(e) => setProductForm((f) => ({ ...f, categoria: e.target.value }))}
+              >
+                <option value="">(Sin categoria)</option>
+                {productCategories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+              <button type="button" className="btn small" onClick={() => setProductForm((f) => ({ ...f, categoria: '' }))}>
+                Quitar
+              </button>
+            </div>
+            <div className="muted small">Nueva categoria (opcional)</div>
             <input
-              value={productForm.categoria}
-              onChange={(e) => setProductForm((f) => ({ ...f, categoria: e.target.value }))}
-              placeholder="Pizza / Bebidas / Postres..."
+              value={customCategoria}
+              onChange={(e) => setCustomCategoria(e.target.value)}
+              placeholder="Escribe una nueva categoria..."
             />
           </label>
           <label>
@@ -473,13 +496,14 @@ function AdminView({ setError }) {
                     body: {
                       nombre: productForm.nombre,
                       descripcion: productForm.descripcion,
-                      categoria: productForm.categoria,
+                      categoria: String(customCategoria).trim() || productForm.categoria,
                       imagen_url: productForm.imagen_url,
                       precio: Number(productForm.precio),
                       stock: Number(productForm.stock),
                     },
                   })
                   setProductForm({ id_producto: '', nombre: '', descripcion: '', categoria: '', imagen_url: '', precio: '', stock: '' })
+                  setCustomCategoria('')
                   await load()
                 } catch (err) {
                   setError(err.message)
@@ -500,12 +524,13 @@ function AdminView({ setError }) {
                     body: {
                       nombre: productForm.nombre,
                       descripcion: productForm.descripcion,
-                      categoria: productForm.categoria,
+                      categoria: String(customCategoria).trim() || productForm.categoria,
                       imagen_url: productForm.imagen_url,
                       precio: Number(productForm.precio),
                       stock: Number(productForm.stock),
                     },
                   })
+                  setCustomCategoria('')
                   await load()
                 } catch (err) {
                   setError(err.message)
@@ -523,6 +548,7 @@ function AdminView({ setError }) {
                 try {
                   await api(`/api/productos/${productForm.id_producto}`, { method: 'DELETE' })
                   setProductForm({ id_producto: '', nombre: '', descripcion: '', categoria: '', imagen_url: '', precio: '', stock: '' })
+                  setCustomCategoria('')
                   await load()
                 } catch (err) {
                   setError(err.message)
