@@ -1,4 +1,4 @@
-import './App.css'
+﻿import './App.css'
 import { useEffect, useMemo, useState } from 'react'
 import { api, setToken } from './api.js'
 import { decodeJwtPayload } from './jwt.js'
@@ -47,34 +47,42 @@ function App() {
     return { name, role }
   }, [session.usuario, role])
 
+  const isAuth = mode !== 'app'
+
   return (
-    <div className="page">
-      <header className="topbar">
-        <div className="brand">
-          <div className="brandMark"><img src="https://ih1.redbubble.net/image.355049251.4252/raf,360x360,075,t,fafafa:ca443f4786.u4.jpg" width={35} height={35}></img></div>
-          <div>
-            <div className="brandName">Condiments Kings</div>
+    <div className={isAuth ? 'page authMode' : 'page'}>
+      {mode === 'app' ? (
+        <header className="topbar">
+          <div className="brand">
+            <div className="brandMark">
+              <img src="https://ih1.redbubble.net/image.355049251.4252/raf,360x360,075,t,fafafa:ca443f4786.u4.jpg" width={35} height={35} />
+            </div>
+            <div>
+              <div className="brandName">Condiments Kings</div>
+            </div>
           </div>
-        </div>
-        <div className="topbarRight">
-          {header.role ? <span className="pill">{header.role}</span> : null}
-          {header.name ? <span className="muted">{header.name}</span> : null}
-          {mode === 'app' ? (
-            <button className="btn" onClick={onLogout}>
-              Cerrar sesión
-            </button>
-          ) : null}
-        </div>
-      </header>
+          <div className="topbarRight">
+            {header.role ? <span className="pill">{header.role}</span> : null}
+            {header.name ? <span className="muted">{header.name}</span> : null}
+            <button className="btn" onClick={onLogout}>Cerrar sesión</button>
+          </div>
+        </header>
+      ) : null}
 
       <main className="content">
-        {error ? <div className="alert">{error}</div> : null}
+        {mode === 'app' && error ? (
+          <div className="alert">
+            <span className="burstWord">BAM!</span>
+            {error}
+          </div>
+        ) : null}
 
         {mode === 'login' ? (
           <Login
             busy={busy}
             setBusy={setBusy}
             setError={setError}
+            error={error}
             onSuccess={(token, usuario) => {
               setToken(token)
               setSession({ token, usuario })
@@ -92,6 +100,7 @@ function App() {
             busy={busy}
             setBusy={setBusy}
             setError={setError}
+            error={error}
             onGoLogin={() => {
               setError('')
               setMode('login')
@@ -107,7 +116,55 @@ function App() {
 
 export default App
 
-function Login({ busy, setBusy, setError, onSuccess, onGoRegister }) {
+function AuthFrame({ heroTitle, heroSub, bannerText, bannerTone, error, children }) {
+  const badges = []
+  const tone = bannerTone || 'red'
+
+  return (
+    <div className="authShell">
+      <div className="authHero">
+        <div className="authBrand">
+          <div className="brandMark">
+            <img
+              src="https://ih1.redbubble.net/image.355049251.4252/raf,360x360,075,t,fafafa:ca443f4786.u4.jpg"
+              width={44}
+              height={44}
+            />
+          </div>
+          <div>
+            <div className="brandName">Condiments Kings</div>
+            <div className="brandTag">La mejor comida rápida</div>
+          </div>
+        </div>
+
+        <div className="heroTitle">{heroTitle}</div>
+        <div className="heroSub">{heroSub}</div>
+
+        <div className="heroBadges">
+          {badges.map((b) => (
+            <div key={b} className="badge">
+              {b}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <section className="card authCard">
+        <div className={`comicBanner ${tone}`}>{bannerText}</div>
+        {error ? (
+          <div className="alert bubble">
+            <span className="burstWord">BAM!</span>
+            {error}
+          </div>
+        ) : null}
+        {children}
+      </section>
+    </div>
+  )
+}
+
+
+function Login({ busy, setBusy, setError, error, onSuccess, onGoRegister }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [tempToken, setTempToken] = useState('')
@@ -144,61 +201,71 @@ function Login({ busy, setBusy, setError, onSuccess, onGoRegister }) {
   }
 
   return (
-    <section className="card">
-      <h2>Iniciar sesión</h2>
-      <p className="muted">
-        Paso 1: email y contraseña. Paso 2: código de tu Authenticator.
-      </p>
-
+    <AuthFrame
+      heroTitle="COMDIMENTS KINGS"
+      heroSub="Inicia sesion y confirma tu codigo 2FA."
+      bannerText={stage === 'password' ? 'WELCOME BACK!' : 'SECRET CODE!'}
+      bannerTone={stage === 'password' ? 'red' : 'blue'}
+      error={error}
+    >
       {stage === 'password' ? (
-        <form onSubmit={onLogin} className="form">
-          <label>
-            Email
-            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="juan@test.com" />
-          </label>
-          <label>
-            Contraseña
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
-          </label>
-          <div className="row">
-            <button className="btn primary" disabled={busy}>
-              {busy ? 'Entrando...' : 'Entrar'}
+        <>
+          <p className="muted">Paso 1: email y contraseña. Paso 2: codigo de tu Authenticator.</p>
+          <form onSubmit={onLogin} className="form" style={{ marginTop: 10 }}>
+            <label>
+              Email
+              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="juan@test.com" />
+            </label>
+            <label>
+              Contraseña
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="********" />
+            </label>
+            <button className="btn zap comicAction full" disabled={busy}>
+              {busy ? 'ZAP...' : 'ZAP!'}
             </button>
-            <button type="button" className="btn" onClick={onGoRegister} disabled={busy}>
-              Crear cuenta
-            </button>
-          </div>
-        </form>
+            <div className="authLinks">
+              <span className="muted small">No eres miembro?</span>
+              <button type="button" className="comicLink" onClick={onGoRegister} disabled={busy}>
+                JOIN THE UNIVERSE!
+              </button>
+            </div>
+          </form>
+        </>
       ) : (
-        <form onSubmit={onVerify} className="form">
-          <label>
-            Código 2FA (6 dígitos)
-            <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" />
-          </label>
-          <div className="row">
-            <button className="btn primary" disabled={busy}>
-              {busy ? 'Verificando...' : 'Verificar 2FA'}
+        <>
+          <p className="muted">Abre tu Authenticator y escribe el codigo de 6 digitos.</p>
+          <form onSubmit={onVerify} className="form" style={{ marginTop: 10 }}>
+            <label>
+              Codigo 2FA (6 digitos)
+              <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" inputMode="numeric" autoComplete="one-time-code" />
+            </label>
+            <button className="btn pow comicAction full" disabled={busy}>
+              {busy ? 'CHECK...' : 'POW! VERIFICAR'}
             </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => {
-                setStage('password')
-                setCode('')
-                setTempToken('')
-              }}
-              disabled={busy}
-            >
-              Volver
-            </button>
-          </div>
-        </form>
+            <div className="authLinks">
+              <span className="muted small">Te equivocaste?</span>
+              <button
+                type="button"
+                className="comicLink"
+                onClick={() => {
+                  setStage('password')
+                  setCode('')
+                  setTempToken('')
+                  setError('')
+                }}
+                disabled={busy}
+              >
+                VOLVER
+              </button>
+            </div>
+          </form>
+        </>
       )}
-    </section>
+    </AuthFrame>
   )
 }
 
-function Register({ busy, setBusy, setError, onGoLogin }) {
+function Register({ busy, setBusy, setError, error, onGoLogin }) {
   const [nombre, setNombre] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -225,11 +292,16 @@ function Register({ busy, setBusy, setError, onGoLogin }) {
   }
 
   return (
-    <section className="card">
-      <h2>Crear cuenta</h2>
-      <p className="muted">Escanea el QR una sola vez en tu Authenticator y luego usa login normal.</p>
+    <AuthFrame
+      heroTitle="Join The Universe"
+      heroSub="Crea tu cuenta y configura 2FA (una sola vez)."
+      bannerText="JOIN THE UNIVERSE!"
+      bannerTone="blue"
+      error={error}
+    >
+      <p className="muted">Crea tu cuenta y luego escanea el QR en tu Authenticator. Despues el login es normal (email + 2FA).</p>
 
-      <form onSubmit={onRegister} className="form">
+      <form onSubmit={onRegister} className="form" style={{ marginTop: 10 }}>
         <label>
           Nombre
           <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Juan" />
@@ -239,8 +311,8 @@ function Register({ busy, setBusy, setError, onGoLogin }) {
           <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="juan@test.com" />
         </label>
         <label>
-          Contraseña
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+          Contrasena
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="********" />
         </label>
         <label>
           Rol (para pruebas)
@@ -250,13 +322,14 @@ function Register({ busy, setBusy, setError, onGoLogin }) {
             <option value="admin">admin</option>
           </select>
         </label>
-        <div className="row">
-          <button className="btn primary" disabled={busy}>
-            {busy ? 'Creando...' : 'Registrar'}
-          </button>
-          <button type="button" className="btn" onClick={onGoLogin} disabled={busy}>
-            Volver a login
-          </button>
+
+        <button className="btn pow comicAction full" disabled={busy}>
+          {busy ? 'POW...' : 'POW! JOIN NOW'}
+        </button>
+
+        <div className="authLinks">
+          <span className="muted small">Ya tienes cuenta?</span>
+          <button type="button" className="comicLink" onClick={onGoLogin} disabled={busy}>LOG IN!</button>
         </div>
       </form>
 
@@ -268,7 +341,7 @@ function Register({ busy, setBusy, setError, onGoLogin }) {
           <code className="codeBlock">{otpauthUrl}</code>
         </div>
       ) : null}
-    </section>
+    </AuthFrame>
   )
 }
 
@@ -434,13 +507,13 @@ function AdminView({ setError }) {
             />
           </label>
           <label>
-            Categoria
+            Categoría
             <div className="row">
               <select
                 value={productForm.categoria}
                 onChange={(e) => setProductForm((f) => ({ ...f, categoria: e.target.value }))}
               >
-                <option value="">(Sin categoria)</option>
+                <option value="">(Sin categoría)</option>
                 {productCategories.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -451,11 +524,11 @@ function AdminView({ setError }) {
                 Quitar
               </button>
             </div>
-            <div className="muted small">Nueva categoria (opcional)</div>
+            <div className="muted small">Nueva categoría (opcional)</div>
             <input
               value={customCategoria}
               onChange={(e) => setCustomCategoria(e.target.value)}
-              placeholder="Escribe una nueva categoria..."
+              placeholder="Escribe una nueva categoría..."
             />
           </label>
           <label>
@@ -568,7 +641,7 @@ function AdminView({ setError }) {
           ['imagen_url', 'Imagen'],
           ['id_producto', 'ID'],
           ['nombre', 'Nombre'],
-          ['descripcion', 'Descripción'],
+          ['descripcion', 'DescripciÃ³n'],
           ['categoria', 'Categoria'],
           ['precio', 'Precio'],
           ['stock', 'Stock'],
@@ -904,7 +977,7 @@ function ClienteView({ setError }) {
               </div>
             ))
           ) : (
-            <div className="muted small">Tu carrito está vacío</div>
+            <div className="muted small">Tu carrito está vací­o</div>
           )}
         </div>
 
@@ -1009,7 +1082,7 @@ function RepartidorView({ setError }) {
         <div className="row spread">
           <div>
             <h2>Repartidor</h2>
-            <p className="muted">Pedidos asignados y actualizacion de estado.</p>
+            <p className="muted">Pedidos asignados y actualización de estado.</p>
           </div>
           <button className="btn" onClick={load}>
             Recargar
