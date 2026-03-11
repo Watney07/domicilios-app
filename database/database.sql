@@ -128,3 +128,11 @@ CREATE TABLE detalle_pedido (
 ALTER TABLE usuarios
 ADD COLUMN twofa_secret
 VARCHAR(255) NULL;
+
+-- Imagenes
+ALTER TABLE productos
+ADD COLUMN imagen_url VARCHAR(500) NULL;
+
+-- Categorías
+ALTER TABLE productos
+ADD COLUMN categoria VARCHAR(100) NULL;

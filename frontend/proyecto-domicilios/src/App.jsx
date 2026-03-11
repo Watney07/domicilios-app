@@ -289,10 +289,12 @@ function AdminView({ setError }) {
   const [usuarios, setUsuarios] = useState([])
   const [pedidos, setPedidos] = useState([])
   const [assign, setAssign] = useState({ id_pedido: '', id_repartidor: '' })
+  const [invoice, setInvoice] = useState({ open: false, loading: false, data: null })
   const [productForm, setProductForm] = useState({
     id_producto: '',
     nombre: '',
     descripcion: '',
+    imagen_url: '',
     precio: '',
     stock: '',
   })
@@ -317,16 +319,50 @@ function AdminView({ setError }) {
     load()
   }, [])
 
+  const openInvoice = async (id_pedido) => {
+    setError('')
+    setInvoice({ open: true, loading: true, data: null })
+    try {
+      const data = await api(`/api/pedidos/${id_pedido}`)
+      setInvoice({ open: true, loading: false, data })
+    } catch (err) {
+      setInvoice({ open: false, loading: false, data: null })
+      setError(err.message)
+    }
+  }
+
+  const pedidosSinAsignar = pedidos.filter((p) => !p.id_repartidor)
+
   return (
     <section className="grid">
       <div className="card">
         <div className="row spread">
-          <h2>Admin</h2>
+          <div>
+            <h2>Admin</h2>
+            <p className="muted">Inventario, usuarios y pedidos.</p>
+          </div>
           <button className="btn" onClick={load}>
             Recargar
           </button>
         </div>
-        <p className="muted">Inventario, usuarios y pedidos.</p>
+        <div className="kpis">
+          <div className="kpi">
+            <div className="kpiLabel">Productos</div>
+            <div className="kpiValue">{productos.length}</div>
+          </div>
+          <div className="kpi">
+            <div className="kpiLabel">Usuarios</div>
+            <div className="kpiValue">{usuarios.length}</div>
+          </div>
+          <div className="kpi">
+            <div className="kpiLabel">Pedidos</div>
+            <div className="kpiValue">{pedidos.length}</div>
+          </div>
+          <div className="kpi">
+            <div className="kpiLabel">Sin asignar</div>
+            <div className="kpiValue">{pedidosSinAsignar.length}</div>
+          </div>
+        </div>
       </div>
 
       <div className="card">
@@ -354,6 +390,7 @@ function AdminView({ setError }) {
                   id_producto: String(found.id_producto),
                   nombre: found.nombre || '',
                   descripcion: found.descripcion || '',
+                  imagen_url: found.imagen_url || '',
                   precio: String(found.precio ?? ''),
                   stock: String(found.stock ?? ''),
                 })
@@ -365,7 +402,7 @@ function AdminView({ setError }) {
             <button
               className="btn"
               onClick={() =>
-                setProductForm({ id_producto: '', nombre: '', descripcion: '', precio: '', stock: '' })
+                setProductForm({ id_producto: '', nombre: '', descripcion: '', imagen_url: '', precio: '', stock: '' })
               }
             >
               Limpiar
@@ -386,6 +423,14 @@ function AdminView({ setError }) {
               value={productForm.descripcion}
               onChange={(e) => setProductForm((f) => ({ ...f, descripcion: e.target.value }))}
               placeholder="Con queso y papas"
+            />
+          </label>
+          <label>
+            Imagen (URL)
+            <input
+              value={productForm.imagen_url}
+              onChange={(e) => setProductForm((f) => ({ ...f, imagen_url: e.target.value }))}
+              placeholder="https://..."
             />
           </label>
           <div className="row">
@@ -418,11 +463,12 @@ function AdminView({ setError }) {
                     body: {
                       nombre: productForm.nombre,
                       descripcion: productForm.descripcion,
+                      imagen_url: productForm.imagen_url,
                       precio: Number(productForm.precio),
                       stock: Number(productForm.stock),
                     },
                   })
-                  setProductForm({ id_producto: '', nombre: '', descripcion: '', precio: '', stock: '' })
+                  setProductForm({ id_producto: '', nombre: '', descripcion: '', imagen_url: '', precio: '', stock: '' })
                   await load()
                 } catch (err) {
                   setError(err.message)
@@ -443,6 +489,7 @@ function AdminView({ setError }) {
                     body: {
                       nombre: productForm.nombre,
                       descripcion: productForm.descripcion,
+                      imagen_url: productForm.imagen_url,
                       precio: Number(productForm.precio),
                       stock: Number(productForm.stock),
                     },
@@ -463,7 +510,7 @@ function AdminView({ setError }) {
                 setError('')
                 try {
                   await api(`/api/productos/${productForm.id_producto}`, { method: 'DELETE' })
-                  setProductForm({ id_producto: '', nombre: '', descripcion: '', precio: '', stock: '' })
+                  setProductForm({ id_producto: '', nombre: '', descripcion: '', imagen_url: '', precio: '', stock: '' })
                   await load()
                 } catch (err) {
                   setError(err.message)
@@ -480,36 +527,56 @@ function AdminView({ setError }) {
       <DataCard
         title="Productos"
         columns={[
+          ['imagen_url', 'Imagen'],
           ['id_producto', 'ID'],
           ['nombre', 'Nombre'],
           ['descripcion', 'Descripción'],
           ['precio', 'Precio'],
           ['stock', 'Stock'],
         ]}
+        renderers={{
+          imagen_url: (v) =>
+            v ? <img className="thumb" src={v} alt="producto" loading="lazy" /> : <span className="muted small">-</span>,
+        }}
         rows={productos}
       />
 
       <DataCard
-        title="Usuarios"
+        title="Pedidos"
         columns={[
-          ['id_usuario', 'ID'],
-          ['nombre', 'Nombre'],
-          ['email', 'Email'],
-          ['rol', 'Rol'],
+          ['id_pedido', 'Pedido'],
+          ['cliente_nombre', 'Cliente'],
+          ['repartidor_nombre', 'Repartidor'],
+          ['estado', 'Estado'],
+          ['total', 'Total'],
+          ['__detail', 'Detalle'],
         ]}
-        rows={usuarios}
+        renderers={{
+          __detail: (_, r) => (
+            <button className="btn small" onClick={() => openInvoice(r.id_pedido)}>
+              Ver
+            </button>
+          ),
+        }}
+        rows={pedidos}
       />
 
       <div className="card">
         <h3>Asignar pedido a repartidor</h3>
         <div className="form">
           <label>
-            id_pedido
-            <input
+            Pedido sin asignar
+            <select
               value={assign.id_pedido}
               onChange={(e) => setAssign((a) => ({ ...a, id_pedido: e.target.value }))}
-              placeholder="1"
-            />
+            >
+              <option value="">Selecciona...</option>
+              {pedidosSinAsignar.map((p) => (
+                <option key={p.id_pedido} value={p.id_pedido}>
+                  #{p.id_pedido} {p.cliente_nombre ? `- ${p.cliente_nombre}` : ''} {p.estado ? `(${p.estado})` : ''}
+                </option>
+              ))}
+            </select>
           </label>
           <label>
             Repartidor
@@ -549,16 +616,23 @@ function AdminView({ setError }) {
       </div>
 
       <DataCard
-        title="Pedidos"
+        title="Usuarios"
         columns={[
-          ['id_pedido', 'Pedido'],
-          ['cliente_nombre', 'Cliente'],
-          ['repartidor_nombre', 'Repartidor'],
-          ['estado', 'Estado'],
-          ['total', 'Total'],
+          ['id_usuario', 'ID'],
+          ['nombre', 'Nombre'],
+          ['email', 'Email'],
+          ['rol', 'Rol'],
         ]}
-        rows={pedidos}
+        rows={usuarios}
       />
+
+      {invoice.open ? (
+        <InvoiceModal
+          loading={invoice.loading}
+          data={invoice.data}
+          onClose={() => setInvoice({ open: false, loading: false, data: null })}
+        />
+      ) : null}
     </section>
   )
 }
@@ -568,6 +642,8 @@ function ClienteView({ setError }) {
   const [pedidos, setPedidos] = useState([])
   const [items, setItems] = useState([]) // [{id_producto,cantidad}]
   const [direccion, setDireccion] = useState('')
+  const [query, setQuery] = useState('')
+  const [invoice, setInvoice] = useState({ open: false, loading: false, data: null })
 
   const load = async () => {
     setError('')
@@ -623,6 +699,15 @@ function ClienteView({ setError }) {
 
   const cartTotal = cartLines.reduce((acc, l) => acc + l.subtotal, 0)
 
+  const filteredProducts = productos
+    .filter((p) => (p.activo === undefined ? true : Number(p.activo) !== 0))
+    .filter((p) => {
+      const q = String(query || '').trim().toLowerCase()
+      if (!q) return true
+      const hay = `${p.nombre || ''} ${p.descripcion || ''}`.toLowerCase()
+      return hay.includes(q)
+    })
+
   const onCrearPedido = async () => {
     setError('')
     try {
@@ -635,32 +720,70 @@ function ClienteView({ setError }) {
     }
   }
 
+  const openInvoice = async (id_pedido) => {
+    setError('')
+    setInvoice({ open: true, loading: true, data: null })
+    try {
+      const data = await api(`/api/pedidos/${id_pedido}`)
+      setInvoice({ open: true, loading: false, data })
+    } catch (err) {
+      setInvoice({ open: false, loading: false, data: null })
+      setError(err.message)
+    }
+  }
+
   return (
     <section className="grid">
       <div className="card">
         <div className="row spread">
-          <h2>Cliente</h2>
+          <div>
+            <h2>Cliente</h2>
+            <p className="muted">Explora productos y crea tus pedidos.</p>
+          </div>
           <button className="btn" onClick={load}>
             Recargar
           </button>
         </div>
-        <p className="muted">Ver productos y crear pedidos.</p>
+        <div className="kpis">
+          <div className="kpi">
+            <div className="kpiLabel">Productos</div>
+            <div className="kpiValue">{filteredProducts.length}</div>
+          </div>
+          <div className="kpi">
+            <div className="kpiLabel">En carrito</div>
+            <div className="kpiValue">{cartLines.reduce((a, l) => a + Number(l.cantidad || 0), 0)}</div>
+          </div>
+          <div className="kpi">
+            <div className="kpiLabel">Total</div>
+            <div className="kpiValue">${cartTotal}</div>
+          </div>
+        </div>
       </div>
 
       <div className="card span8">
         <div className="row spread">
           <h3>Productos</h3>
-          <div className="muted small">Elige items para tu pedido</div>
+          <div className="row">
+            <input
+              className="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar productos..."
+            />
+          </div>
         </div>
         <div className="productGrid">
-          {productos
-            .filter((p) => (p.activo === undefined ? true : Number(p.activo) !== 0))
-            .map((p) => (
-              <div key={p.id_producto} className="productCard">
-                <div className="productName">{p.nombre}</div>
-                <div className="muted small clamp2">{p.descripcion || ''}</div>
-                <div className="row spread">
-                  <div className="price">${p.precio}</div>
+           {filteredProducts.map((p) => (
+               <div key={p.id_producto} className="productCard">
+                 {p.imagen_url ? (
+                   <img className="productImg" src={p.imagen_url} alt={p.nombre} loading="lazy" />
+                 ) : (
+                   <div className="productImg placeholder" />
+                 )}
+                 <div className="productName">{p.nombre}</div>
+                 <div className="muted small clamp2">{p.descripcion || ''}</div>
+                 <div className="row spread">
+                   <div className="price">${p.precio}</div>
                   <button className="btn small primary" onClick={() => addItem(p.id_producto)}>
                     +
                   </button>
@@ -733,9 +856,25 @@ function ClienteView({ setError }) {
           ['estado', 'Estado'],
           ['total', 'Total'],
           ['fecha_pedido', 'Fecha'],
+          ['__detail', 'Detalle'],
         ]}
+        renderers={{
+          __detail: (_, r) => (
+            <button className="btn small" onClick={() => openInvoice(r.id_pedido)}>
+              Ver
+            </button>
+          ),
+        }}
         rows={pedidos}
       />
+
+      {invoice.open ? (
+        <InvoiceModal
+          loading={invoice.loading}
+          data={invoice.data}
+          onClose={() => setInvoice({ open: false, loading: false, data: null })}
+        />
+      ) : null}
     </section>
   )
 }
@@ -744,6 +883,7 @@ function RepartidorView({ setError }) {
   const [pedidos, setPedidos] = useState([])
   const [estados, setEstados] = useState([])
   const [update, setUpdate] = useState({ id_pedido: '', id_estado: '' })
+  const [invoice, setInvoice] = useState({ open: false, loading: false, data: null })
 
   const load = async () => {
     setError('')
@@ -773,16 +913,40 @@ function RepartidorView({ setError }) {
     }
   }
 
+  const openInvoice = async (id_pedido) => {
+    setError('')
+    setInvoice({ open: true, loading: true, data: null })
+    try {
+      const data = await api(`/api/pedidos/${id_pedido}`)
+      setInvoice({ open: true, loading: false, data })
+    } catch (err) {
+      setInvoice({ open: false, loading: false, data: null })
+      setError(err.message)
+    }
+  }
+
   return (
     <section className="grid">
       <div className="card">
         <div className="row spread">
-          <h2>Repartidor</h2>
+          <div>
+            <h2>Repartidor</h2>
+            <p className="muted">Pedidos asignados y actualizacion de estado.</p>
+          </div>
           <button className="btn" onClick={load}>
             Recargar
           </button>
         </div>
-        <p className="muted">Ver pedidos asignados y cambiar estado.</p>
+        <div className="kpis">
+          <div className="kpi">
+            <div className="kpiLabel">Asignados</div>
+            <div className="kpiValue">{pedidos.length}</div>
+          </div>
+          <div className="kpi">
+            <div className="kpiLabel">Estados</div>
+            <div className="kpiValue">{estados.length}</div>
+          </div>
+        </div>
       </div>
 
       <DataCard
@@ -793,7 +957,15 @@ function RepartidorView({ setError }) {
           ['direccion_entrega', 'Dirección'],
           ['estado', 'Estado'],
           ['total', 'Total'],
+          ['__detail', 'Detalle'],
         ]}
+        renderers={{
+          __detail: (_, r) => (
+            <button className="btn small" onClick={() => openInvoice(r.id_pedido)}>
+              Ver
+            </button>
+          ),
+        }}
         rows={pedidos}
       />
 
@@ -801,8 +973,15 @@ function RepartidorView({ setError }) {
         <h3>Cambiar estado</h3>
         <div className="form">
           <label>
-            id_pedido
-            <input value={update.id_pedido} onChange={(e) => setUpdate((u) => ({ ...u, id_pedido: e.target.value }))} placeholder="1" />
+            Pedido
+            <select value={update.id_pedido} onChange={(e) => setUpdate((u) => ({ ...u, id_pedido: e.target.value }))}>
+              <option value="">Selecciona...</option>
+              {pedidos.map((p) => (
+                <option key={p.id_pedido} value={p.id_pedido}>
+                  #{p.id_pedido} {p.cliente_nombre ? `- ${p.cliente_nombre}` : ''} {p.estado ? `(${p.estado})` : ''}
+                </option>
+              ))}
+            </select>
           </label>
           <label>
             Nuevo estado
@@ -820,27 +999,36 @@ function RepartidorView({ setError }) {
           </button>
         </div>
       </div>
+
+      {invoice.open ? (
+        <InvoiceModal
+          loading={invoice.loading}
+          data={invoice.data}
+          onClose={() => setInvoice({ open: false, loading: false, data: null })}
+        />
+      ) : null}
     </section>
   )
 }
 
-function DataCard({ title, columns, rows }) {
+function DataCard({ title, columns, rows, renderers }) {
   return (
     <div className="card">
       <h3>{title}</h3>
       <div className="table">
-        <Table columns={columns} rows={rows} />
+        <Table columns={columns} rows={rows} renderers={renderers} />
       </div>
     </div>
   )
 }
 
-function Table({ columns, rows }) {
+function Table({ columns, rows, renderers }) {
   if (!rows || rows.length === 0) {
     return <div className="muted small">Sin datos</div>
   }
 
   const cols = columns && columns.length ? columns : Object.keys(rows[0]).map((k) => [k, k])
+  const rmap = renderers || {}
 
   return (
     <div className="tblWrap">
@@ -856,12 +1044,97 @@ function Table({ columns, rows }) {
           {rows.map((r, idx) => (
             <tr key={r.id || r.id_pedido || r.id_usuario || r.id_producto || idx}>
               {cols.map(([key]) => (
-                <td key={key}>{String(r[key] ?? '')}</td>
+                <td key={key}>{rmap[key] ? rmap[key](r[key], r) : String(r[key] ?? '')}</td>
               ))}
             </tr>
           ))}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+function InvoiceModal({ loading, data, onClose }) {
+  const pedido = data?.pedido || null
+  const detalle = data?.detalle || []
+
+  const totalCalc = detalle.reduce((acc, d) => acc + Number(d.precio_unitario || 0) * Number(d.cantidad || 0), 0)
+  const total = pedido && pedido.total !== undefined && pedido.total !== null ? pedido.total : totalCalc
+
+  return (
+    <div className="modalOverlay" onMouseDown={onClose}>
+      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
+        <div className="modalHeader">
+          <div>
+            <div className="modalTitle">Detalle del pedido</div>
+            {pedido ? (
+              <div className="muted small">
+                Pedido #{pedido.id_pedido} {pedido.estado ? `(${pedido.estado})` : ''}
+              </div>
+            ) : null}
+          </div>
+          <button className="btn" onClick={onClose}>
+            Cerrar
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="muted">Cargando...</div>
+        ) : pedido ? (
+          <>
+            <div className="invoiceMeta">
+              <div className="metaItem">
+                <div className="metaLabel">Cliente</div>
+                <div className="metaValue">{pedido.cliente_nombre || '-'}</div>
+              </div>
+              <div className="metaItem">
+                <div className="metaLabel">Direccion</div>
+                <div className="metaValue">{pedido.direccion_entrega || '-'}</div>
+              </div>
+              <div className="metaItem">
+                <div className="metaLabel">Repartidor</div>
+                <div className="metaValue">{pedido.repartidor_nombre || '-'}</div>
+              </div>
+              <div className="metaItem">
+                <div className="metaLabel">Total</div>
+                <div className="metaValue">${total}</div>
+              </div>
+            </div>
+
+            <div className="invoiceLines">
+              <div className="tblWrap">
+                <table className="tbl">
+                  <thead>
+                    <tr>
+                      <th>Producto</th>
+                      <th>Cant.</th>
+                      <th>Unit.</th>
+                      <th>Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detalle.map((d) => (
+                      <tr key={d.id_detalle}>
+                        <td>{d.producto || d.id_producto}</td>
+                        <td>{d.cantidad}</td>
+                        <td>${d.precio_unitario}</td>
+                        <td>${Number(d.precio_unitario || 0) * Number(d.cantidad || 0)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="invoiceFooter">
+              <div className="muted small">Total calculado</div>
+              <div className="totalNum">${totalCalc}</div>
+            </div>
+          </>
+        ) : (
+          <div className="muted">No hay datos del pedido.</div>
+        )}
+      </div>
     </div>
   )
 }
