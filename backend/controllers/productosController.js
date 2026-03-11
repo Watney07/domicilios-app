@@ -16,14 +16,14 @@ exports.obtenerProductos = (req, res) => {
 
 exports.crearProducto = (req, res) => {
 
-    const { nombre, descripcion, precio, stock, imagen_url } = req.body;
+    const { nombre, descripcion, precio, stock, imagen_url, categoria } = req.body;
 
     const sql = `
-        INSERT INTO productos (nombre, descripcion, precio, stock, imagen_url)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO productos (nombre, descripcion, precio, stock, imagen_url, categoria)
+        VALUES (?, ?, ?, ?, ?, ?)
     `;
 
-    db.query(sql, [nombre, descripcion, precio, stock, imagen_url || null], (err, result) => {
+    db.query(sql, [nombre, descripcion, precio, stock, imagen_url || null, categoria || null], (err, result) => {
 
         if (err) {
             return res.status(500).json({ error: err.message });
@@ -41,15 +41,15 @@ exports.crearProducto = (req, res) => {
 exports.actualizarProducto = (req, res) => {
 
     const { id } = req.params;
-    const { nombre, descripcion, precio, stock, imagen_url } = req.body;
+    const { nombre, descripcion, precio, stock, imagen_url, categoria } = req.body;
 
     const sql = `
         UPDATE productos
-        SET nombre=?, descripcion=?, precio=?, stock=?, imagen_url=?
+        SET nombre=?, descripcion=?, precio=?, stock=?, imagen_url=?, categoria=?
         WHERE id_producto=?
     `;
 
-    db.query(sql, [nombre, descripcion, precio, stock, imagen_url || null, id], (err) => {
+    db.query(sql, [nombre, descripcion, precio, stock, imagen_url || null, categoria || null, id], (err) => {
 
         if (err) {
             return res.status(500).json({ error: err.message });

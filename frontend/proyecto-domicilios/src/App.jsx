@@ -294,6 +294,7 @@ function AdminView({ setError }) {
     id_producto: '',
     nombre: '',
     descripcion: '',
+    categoria: '',
     imagen_url: '',
     precio: '',
     stock: '',
@@ -390,6 +391,7 @@ function AdminView({ setError }) {
                   id_producto: String(found.id_producto),
                   nombre: found.nombre || '',
                   descripcion: found.descripcion || '',
+                  categoria: found.categoria || '',
                   imagen_url: found.imagen_url || '',
                   precio: String(found.precio ?? ''),
                   stock: String(found.stock ?? ''),
@@ -402,7 +404,7 @@ function AdminView({ setError }) {
             <button
               className="btn"
               onClick={() =>
-                setProductForm({ id_producto: '', nombre: '', descripcion: '', imagen_url: '', precio: '', stock: '' })
+                setProductForm({ id_producto: '', nombre: '', descripcion: '', categoria: '', imagen_url: '', precio: '', stock: '' })
               }
             >
               Limpiar
@@ -423,6 +425,14 @@ function AdminView({ setError }) {
               value={productForm.descripcion}
               onChange={(e) => setProductForm((f) => ({ ...f, descripcion: e.target.value }))}
               placeholder="Con queso y papas"
+            />
+          </label>
+          <label>
+            Categoria
+            <input
+              value={productForm.categoria}
+              onChange={(e) => setProductForm((f) => ({ ...f, categoria: e.target.value }))}
+              placeholder="Pizza / Bebidas / Postres..."
             />
           </label>
           <label>
@@ -463,12 +473,13 @@ function AdminView({ setError }) {
                     body: {
                       nombre: productForm.nombre,
                       descripcion: productForm.descripcion,
+                      categoria: productForm.categoria,
                       imagen_url: productForm.imagen_url,
                       precio: Number(productForm.precio),
                       stock: Number(productForm.stock),
                     },
                   })
-                  setProductForm({ id_producto: '', nombre: '', descripcion: '', imagen_url: '', precio: '', stock: '' })
+                  setProductForm({ id_producto: '', nombre: '', descripcion: '', categoria: '', imagen_url: '', precio: '', stock: '' })
                   await load()
                 } catch (err) {
                   setError(err.message)
@@ -489,6 +500,7 @@ function AdminView({ setError }) {
                     body: {
                       nombre: productForm.nombre,
                       descripcion: productForm.descripcion,
+                      categoria: productForm.categoria,
                       imagen_url: productForm.imagen_url,
                       precio: Number(productForm.precio),
                       stock: Number(productForm.stock),
@@ -510,7 +522,7 @@ function AdminView({ setError }) {
                 setError('')
                 try {
                   await api(`/api/productos/${productForm.id_producto}`, { method: 'DELETE' })
-                  setProductForm({ id_producto: '', nombre: '', descripcion: '', imagen_url: '', precio: '', stock: '' })
+                  setProductForm({ id_producto: '', nombre: '', descripcion: '', categoria: '', imagen_url: '', precio: '', stock: '' })
                   await load()
                 } catch (err) {
                   setError(err.message)
@@ -531,6 +543,7 @@ function AdminView({ setError }) {
           ['id_producto', 'ID'],
           ['nombre', 'Nombre'],
           ['descripcion', 'Descripción'],
+          ['categoria', 'Categoria'],
           ['precio', 'Precio'],
           ['stock', 'Stock'],
         ]}
@@ -644,6 +657,7 @@ function ClienteView({ setError }) {
   const [direccion, setDireccion] = useState('')
   const [query, setQuery] = useState('')
   const [invoice, setInvoice] = useState({ open: false, loading: false, data: null })
+  const [category, setCategory] = useState('')
 
   const load = async () => {
     setError('')
@@ -699,14 +713,30 @@ function ClienteView({ setError }) {
 
   const cartTotal = cartLines.reduce((acc, l) => acc + l.subtotal, 0)
 
-  const filteredProducts = productos
-    .filter((p) => (p.activo === undefined ? true : Number(p.activo) !== 0))
+  const activeProducts = productos.filter((p) => (p.activo === undefined ? true : Number(p.activo) !== 0))
+
+  const categories = Array.from(
+    new Set(activeProducts.map((p) => String(p.categoria || '').trim()).filter(Boolean)),
+  ).sort((a, b) => a.localeCompare(b))
+
+  const filteredProducts = activeProducts
     .filter((p) => {
       const q = String(query || '').trim().toLowerCase()
       if (!q) return true
-      const hay = `${p.nombre || ''} ${p.descripcion || ''}`.toLowerCase()
+      const hay = `${p.nombre || ''} ${p.descripcion || ''} ${p.categoria || ''}`.toLowerCase()
       return hay.includes(q)
     })
+    .filter((p) => {
+      if (!category) return true
+      return String(p.categoria || '').trim() === category
+    })
+
+  const grouped = filteredProducts.reduce((acc, p) => {
+    const key = String(p.categoria || '').trim() || 'Sin categoria'
+    if (!acc[key]) acc[key] = []
+    acc[key].push(p)
+    return acc
+  }, {})
 
   const onCrearPedido = async () => {
     setError('')
@@ -772,24 +802,46 @@ function ClienteView({ setError }) {
             />
           </div>
         </div>
+        <div className="chipRow" role="tablist" aria-label="Categorias">
+          <button className={`chip ${!category ? 'active' : ''}`} onClick={() => setCategory('')}>
+            Todas
+          </button>
+          {categories.map((c) => (
+            <button key={c} className={`chip ${category === c ? 'active' : ''}`} onClick={() => setCategory(c)}>
+              {c}
+            </button>
+          ))}
+        </div>
         <div className="productGrid">
-           {filteredProducts.map((p) => (
-               <div key={p.id_producto} className="productCard">
-                 {p.imagen_url ? (
-                   <img className="productImg" src={p.imagen_url} alt={p.nombre} loading="lazy" />
-                 ) : (
-                   <div className="productImg placeholder" />
-                 )}
-                 <div className="productName">{p.nombre}</div>
-                 <div className="muted small clamp2">{p.descripcion || ''}</div>
-                 <div className="row spread">
-                   <div className="price">${p.precio}</div>
-                  <button className="btn small primary" onClick={() => addItem(p.id_producto)}>
-                    +
-                  </button>
-                </div>
+          {(category
+            ? [{ key: category || 'Resultados', list: filteredProducts }]
+            : Object.keys(grouped)
+                .sort((a, b) => a.localeCompare(b))
+                .map((k) => ({ key: k, list: grouped[k] }))
+          ).map((g) => (
+            <div key={g.key} className="catSection">
+              <div className="sectionTitle">{g.key}</div>
+              <div className="productGridInner">
+                {g.list.map((p) => (
+                  <div key={p.id_producto} className="productCard">
+                    {p.imagen_url ? (
+                      <img className="productImg" src={p.imagen_url} alt={p.nombre} loading="lazy" />
+                    ) : (
+                      <div className="productImg placeholder" />
+                    )}
+                    <div className="productName">{p.nombre}</div>
+                    <div className="muted small clamp2">{p.descripcion || ''}</div>
+                    <div className="row spread">
+                      <div className="price">${p.precio}</div>
+                      <button className="btn small primary" onClick={() => addItem(p.id_producto)}>
+                        +
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+          ))}
         </div>
       </div>
 
