@@ -134,6 +134,10 @@ exports.crearPedido = (req, res) => {
     const idCliente = req.user.id_usuario;
     const { direccion_entrega, items } = req.body;
 
+    if (!direccion_entrega || !String(direccion_entrega).trim()) {
+        return res.status(400).json({ error: "direccion_entrega es requerida" });
+    }
+
     if (!Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ error: "items es requerido" });
     }
@@ -197,7 +201,7 @@ exports.crearPedido = (req, res) => {
 
                 db.query(
                     sqlPedido,
-                    [idCliente, idEstadoPendiente, direccion_entrega || null, total],
+                    [idCliente, idEstadoPendiente, String(direccion_entrega).trim(), total],
                     (errIns, result) => {
                         if (errIns) return rollback(500, errIns.message);
                         const idPedido = result.insertId;

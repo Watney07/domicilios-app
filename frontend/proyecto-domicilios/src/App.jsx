@@ -51,10 +51,9 @@ function App() {
     <div className="page">
       <header className="topbar">
         <div className="brand">
-          <div className="brandMark">D</div>
+          <div className="brandMark"><img src="https://ih1.redbubble.net/image.355049251.4252/raf,360x360,075,t,fafafa:ca443f4786.u4.jpg" width={35} height={35}></img></div>
           <div>
-            <div className="brandName">Proyecto Domicilios</div>
-            <div className="brandTag">React + Express + MySQL</div>
+            <div className="brandName">Condiments Kings</div>
           </div>
         </div>
         <div className="topbarRight">
@@ -593,6 +592,37 @@ function ClienteView({ setError }) {
     })
   }
 
+  const decItem = (id_producto) => {
+    setItems((prev) =>
+      prev
+        .map((x) => (x.id_producto === id_producto ? { ...x, cantidad: x.cantidad - 1 } : x))
+        .filter((x) => x.cantidad > 0),
+    )
+  }
+
+  const removeItem = (id_producto) => {
+    setItems((prev) => prev.filter((x) => x.id_producto !== id_producto))
+  }
+
+  const cartLines = items
+    .map((it) => {
+      const p = productos.find((x) => x.id_producto === it.id_producto)
+      if (!p) return null
+      const precio = Number(p.precio || 0)
+      const subtotal = precio * Number(it.cantidad || 0)
+      return {
+        id_producto: it.id_producto,
+        nombre: p.nombre,
+        descripcion: p.descripcion || '',
+        precio,
+        cantidad: it.cantidad,
+        subtotal,
+      }
+    })
+    .filter(Boolean)
+
+  const cartTotal = cartLines.reduce((acc, l) => acc + l.subtotal, 0)
+
   const onCrearPedido = async () => {
     setError('')
     try {
@@ -617,38 +647,80 @@ function ClienteView({ setError }) {
         <p className="muted">Ver productos y crear pedidos.</p>
       </div>
 
-      <div className="card">
-        <h3>Productos</h3>
-        <div className="list">
+      <div className="card span8">
+        <div className="row spread">
+          <h3>Productos</h3>
+          <div className="muted small">Elige items para tu pedido</div>
+        </div>
+        <div className="productGrid">
           {productos
             .filter((p) => (p.activo === undefined ? true : Number(p.activo) !== 0))
             .map((p) => (
-            <div key={p.id_producto} className="listRow">
-              <div>
-                <div className="strong">{p.nombre}</div>
-                <div className="muted small">{p.descripcion || ''}</div>
-                <div className="muted small">${p.precio}</div>
+              <div key={p.id_producto} className="productCard">
+                <div className="productName">{p.nombre}</div>
+                <div className="muted small clamp2">{p.descripcion || ''}</div>
+                <div className="row spread">
+                  <div className="price">${p.precio}</div>
+                  <button className="btn small primary" onClick={() => addItem(p.id_producto)}>
+                    +
+                  </button>
+                </div>
               </div>
-              <button className="btn small" onClick={() => addItem(p.id_producto)}>
-                Agregar
-              </button>
-            </div>
-          ))}
+            ))}
         </div>
       </div>
 
-      <div className="card">
+      <div className="card span4">
         <h3>Carrito</h3>
         <label className="block">
-          Dirección entrega (opcional)
+          Dirección de entrega
           <input value={direccion} onChange={(e) => setDireccion(e.target.value)} placeholder="Calle 123" />
         </label>
-        <div className="muted small">Items: {items.length ? JSON.stringify(items) : 'vacío'}</div>
+
+        <div className="cartList">
+          {cartLines.length ? (
+            cartLines.map((l) => (
+              <div key={l.id_producto} className="cartRow">
+                <div className="cartInfo">
+                  <div className="strong">{l.nombre}</div>
+                  <div className="muted small">${l.precio} c/u</div>
+                </div>
+                <div className="qty">
+                  <button className="qtyBtn" onClick={() => decItem(l.id_producto)}>
+                    -
+                  </button>
+                  <div className="qtyNum">{l.cantidad}</div>
+                  <button className="qtyBtn" onClick={() => addItem(l.id_producto)}>
+                    +
+                  </button>
+                </div>
+                <div className="cartRight">
+                  <div className="strong">${l.subtotal}</div>
+                  <button className="linkDanger" onClick={() => removeItem(l.id_producto)}>
+                    Quitar
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="muted small">Tu carrito está vacío</div>
+          )}
+        </div>
+
+        <div className="cartTotal">
+          <div className="muted small">Total</div>
+          <div className="totalNum">${cartTotal}</div>
+        </div>
+
         <div className="row">
-          <button className="btn primary" onClick={onCrearPedido} disabled={!items.length}>
-            Crear pedido
+          <button
+            className="btn primary full"
+            onClick={onCrearPedido}
+            disabled={!cartLines.length || !String(direccion).trim()}
+          >
+            Pagar / Crear pedido
           </button>
-          <button className="btn" onClick={() => setItems([])} disabled={!items.length}>
+          <button className="btn full" onClick={() => setItems([])} disabled={!cartLines.length}>
             Vaciar
           </button>
         </div>
