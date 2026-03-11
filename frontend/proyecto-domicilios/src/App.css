@@ -121,6 +121,10 @@ label {
   color: rgba(255, 255, 255, 0.82);
 }
 
+.grow {
+  flex: 1 1 240px;
+}
+
 .block {
   display: grid;
   gap: 6px;
@@ -167,6 +171,11 @@ input::placeholder {
 .btn.primary {
   border-color: rgba(96, 165, 250, 0.35);
   background: linear-gradient(135deg, rgba(96, 165, 250, 0.18), rgba(94, 234, 212, 0.12));
+}
+
+.btn.danger {
+  border-color: rgba(251, 113, 133, 0.35);
+  background: rgba(251, 113, 133, 0.12);
 }
 
 .btn.small {

@@ -290,6 +290,13 @@ function AdminView({ setError }) {
   const [usuarios, setUsuarios] = useState([])
   const [pedidos, setPedidos] = useState([])
   const [assign, setAssign] = useState({ id_pedido: '', id_repartidor: '' })
+  const [productForm, setProductForm] = useState({
+    id_producto: '',
+    nombre: '',
+    descripcion: '',
+    precio: '',
+    stock: '',
+  })
 
   const load = async () => {
     setError('')
@@ -323,11 +330,160 @@ function AdminView({ setError }) {
         <p className="muted">Inventario, usuarios y pedidos.</p>
       </div>
 
+      <div className="card">
+        <h3>Gestionar productos</h3>
+        <p className="muted small">
+          Crear, actualizar y eliminar productos (requiere rol admin).
+        </p>
+        <div className="form">
+          <div className="row">
+            <label className="grow">
+              ID (solo para editar)
+              <input
+                value={productForm.id_producto}
+                onChange={(e) => setProductForm((f) => ({ ...f, id_producto: e.target.value }))}
+                placeholder="ej: 1"
+              />
+            </label>
+            <button
+              className="btn"
+              onClick={() => {
+                const id = Number(productForm.id_producto)
+                const found = productos.find((p) => Number(p.id_producto) === id)
+                if (!found) return
+                setProductForm({
+                  id_producto: String(found.id_producto),
+                  nombre: found.nombre || '',
+                  descripcion: found.descripcion || '',
+                  precio: String(found.precio ?? ''),
+                  stock: String(found.stock ?? ''),
+                })
+              }}
+              disabled={!productForm.id_producto}
+            >
+              Cargar desde lista
+            </button>
+            <button
+              className="btn"
+              onClick={() =>
+                setProductForm({ id_producto: '', nombre: '', descripcion: '', precio: '', stock: '' })
+              }
+            >
+              Limpiar
+            </button>
+          </div>
+
+          <label>
+            Nombre
+            <input
+              value={productForm.nombre}
+              onChange={(e) => setProductForm((f) => ({ ...f, nombre: e.target.value }))}
+              placeholder="Hamburguesa"
+            />
+          </label>
+          <label>
+            Descripción
+            <input
+              value={productForm.descripcion}
+              onChange={(e) => setProductForm((f) => ({ ...f, descripcion: e.target.value }))}
+              placeholder="Con queso y papas"
+            />
+          </label>
+          <div className="row">
+            <label className="grow">
+              Precio
+              <input
+                value={productForm.precio}
+                onChange={(e) => setProductForm((f) => ({ ...f, precio: e.target.value }))}
+                placeholder="12000"
+              />
+            </label>
+            <label className="grow">
+              Stock
+              <input
+                value={productForm.stock}
+                onChange={(e) => setProductForm((f) => ({ ...f, stock: e.target.value }))}
+                placeholder="10"
+              />
+            </label>
+          </div>
+
+          <div className="row">
+            <button
+              className="btn primary"
+              onClick={async () => {
+                setError('')
+                try {
+                  await api('/api/productos', {
+                    method: 'POST',
+                    body: {
+                      nombre: productForm.nombre,
+                      descripcion: productForm.descripcion,
+                      precio: Number(productForm.precio),
+                      stock: Number(productForm.stock),
+                    },
+                  })
+                  setProductForm({ id_producto: '', nombre: '', descripcion: '', precio: '', stock: '' })
+                  await load()
+                } catch (err) {
+                  setError(err.message)
+                }
+              }}
+              disabled={!productForm.nombre || !productForm.precio || !productForm.stock}
+            >
+              Agregar producto
+            </button>
+
+            <button
+              className="btn"
+              onClick={async () => {
+                setError('')
+                try {
+                  await api(`/api/productos/${productForm.id_producto}`, {
+                    method: 'PUT',
+                    body: {
+                      nombre: productForm.nombre,
+                      descripcion: productForm.descripcion,
+                      precio: Number(productForm.precio),
+                      stock: Number(productForm.stock),
+                    },
+                  })
+                  await load()
+                } catch (err) {
+                  setError(err.message)
+                }
+              }}
+              disabled={!productForm.id_producto}
+            >
+              Guardar cambios
+            </button>
+
+            <button
+              className="btn danger"
+              onClick={async () => {
+                setError('')
+                try {
+                  await api(`/api/productos/${productForm.id_producto}`, { method: 'DELETE' })
+                  setProductForm({ id_producto: '', nombre: '', descripcion: '', precio: '', stock: '' })
+                  await load()
+                } catch (err) {
+                  setError(err.message)
+                }
+              }}
+              disabled={!productForm.id_producto}
+            >
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+
       <DataCard
         title="Productos"
         columns={[
           ['id_producto', 'ID'],
           ['nombre', 'Nombre'],
+          ['descripcion', 'Descripción'],
           ['precio', 'Precio'],
           ['stock', 'Stock'],
         ]}
@@ -464,10 +620,13 @@ function ClienteView({ setError }) {
       <div className="card">
         <h3>Productos</h3>
         <div className="list">
-          {productos.map((p) => (
+          {productos
+            .filter((p) => (p.activo === undefined ? true : Number(p.activo) !== 0))
+            .map((p) => (
             <div key={p.id_producto} className="listRow">
               <div>
                 <div className="strong">{p.nombre}</div>
+                <div className="muted small">{p.descripcion || ''}</div>
                 <div className="muted small">${p.precio}</div>
               </div>
               <button className="btn small" onClick={() => addItem(p.id_producto)}>
