@@ -256,3 +256,9 @@ exports.verify2fa = (req, res) => {
     });
 
 };
+
+// GET /api/auth/me
+// Devuelve el payload del JWT (usuario logueado).
+exports.me = (req, res) => {
+    res.json({ usuario: req.user });
+};
