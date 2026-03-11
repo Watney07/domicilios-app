@@ -9,3 +9,4 @@ router.put("/:id", productosController.actualizarProducto);
 router.delete("/:id", productosController.eliminarProducto);
 
 module.exports = router;
+
